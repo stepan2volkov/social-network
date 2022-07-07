@@ -1,0 +1,82 @@
+openapi: "3.0.3"
+info:
+  title: Friends for Social Network API
+  version: "1.0.0"
+servers:
+  - url: http://localhost:8000/friends
+    description: Local server for testing
+
+tags:
+  - name: friends
+    description: "The handlers connected with user friends information"
+
+paths:
+  /:
+    post:
+      tags:
+      - friends
+      operationId: FollowUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          applicaion/json:
+            schema: 
+              $ref: '#/components/schemas/FollowRequest'
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad request
+        "401":
+          $ref: ./auth.openapi.yaml#/components/responses/UnauthorizedError
+
+  /{username}:
+    get:
+      tags:
+      - friends
+      operationId: GetUserFriends
+      security:
+        - bearerAuth: []
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            applicaion/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Friend'
+          description: OK
+        "401":
+          $ref: './auth.openapi.yaml#/components/responses/UnauthorizedError'
+        "404":
+          description: Not Found
+
+components:
+  schemas:
+    Friend:
+     allOf:
+        - $ref: './profiles.openapi.yaml#/components/schemas/UserProfile'
+        - type: "object"
+          properties:
+            status:
+              type: string
+          required: [status]
+    FollowRequest:
+      type: object
+      required: [leader_username]
+      properties:
+        leader_username:
+          type: string
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

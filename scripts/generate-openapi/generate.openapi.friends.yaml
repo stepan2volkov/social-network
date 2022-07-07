@@ -1,0 +1,8 @@
+package: friendopenapi
+generate:
+  chi-server: true
+  models: true
+  embedded-spec: true
+output: ./internal/api/openapi/friendopenapi/friendopenapi.gen.go
+output-options:
+  skip-prune: true

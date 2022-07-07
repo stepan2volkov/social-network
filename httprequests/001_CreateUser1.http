@@ -1,0 +1,13 @@
+@host = http://localhost:8000
+
+POST {{host}}/auth/register
+
+{
+    "username": "stepvolkov",
+    "password": "testpassword",
+    "birthdate": "1996-09-29",
+    "firstname": "Stepan",
+    "lastname": "Volkov",
+    "gender": "m",
+    "city_id": 3
+}

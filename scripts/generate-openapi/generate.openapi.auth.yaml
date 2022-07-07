@@ -1,0 +1,8 @@
+package: authopenapi
+generate:
+  chi-server: true
+  models: true
+  embedded-spec: true
+output: ./internal/api/openapi/authopenapi/authopenapi.gen.go
+output-options:
+  skip-prune: true

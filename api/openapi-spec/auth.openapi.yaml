@@ -1,0 +1,81 @@
+openapi: "3.0.3"
+info:
+  title: Authorization of Social Network API
+  version: "1.0.0"
+servers:
+  - url: http://localhost:8000/auth
+    description: Local server for testing
+
+tags:
+  - name: auth
+    description: "The handlers connected with authorization"
+
+paths:
+  /login:
+    post:
+      tags:
+      - auth
+      operationId: Login
+      requestBody:
+        content:
+          applicaion/json:
+            schema: 
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        "200":
+          description: OK
+  /register:
+    post:
+      tags:
+      - auth
+      operationId: Register
+      requestBody:
+        content:
+          applicaion/json:
+            schema: 
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+
+
+components:
+  responses:
+    UnauthorizedError:
+      description: Access token is missing or invalid
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    RegisterRequest:
+      allOf:
+          - $ref: "#/components/schemas/BaseUser"
+          - type: "object"
+            properties:
+              password:
+                type: string
+            required: [password]
+    BaseUser:
+      type: object
+      required: [username, firstname, lastname, birthdate, gender, city_id]
+      properties:
+        username:
+          type: string
+        firstname:
+          type: string
+        lastname:
+          type: string
+        birthdate:
+          type: string
+          format: date
+        gender:
+          type: string
+        city_id: 
+          type: integer

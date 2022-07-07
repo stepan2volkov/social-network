@@ -1,0 +1,61 @@
+openapi: "3.0.3"
+info:
+  title: Profiles for Social Network API
+  version: "1.0.0"
+servers:
+  - url: http://localhost:8000/profiles
+    description: Local server for testing
+
+tags:
+  - name: profiles
+    description: "The handlers connected with user profile information"
+
+paths:
+  /{username}:
+    get:
+      tags:
+      - profiles
+      operationId: GetUserProfile
+      security:
+        - bearerAuth: []
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            applicaion/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: OK
+        "401":
+          $ref: '#/components/responses/UnauthorizedError'
+        "404":
+          description: Not Found
+
+components:
+  responses:
+    UnauthorizedError:
+      description: Access token is missing or invalid
+  schemas:
+    UserProfile:
+     allOf:
+        - $ref: ./auth.openapi.yaml#/components/schemas/BaseUser
+        - type: "object"
+          properties:
+            id:
+              type: integer
+              format: uint64
+            created_at:
+              type: string
+              format: date-time
+          required: [id, created_at]
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
