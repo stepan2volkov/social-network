@@ -1,0 +1,44 @@
+run:
+  concurrency: 2
+  timeout: 2m
+  issues-exit-code: 1
+  tests: false
+  skip-dirs-use-default: true
+
+linters:
+  disable-all: true
+  enable:
+  - errcheck
+  - gosimple
+  - govet
+  - gofmt
+  - goimports
+  - unused
+  - bodyclose
+  - goconst
+  - funlen
+  - errname
+  - exportloopref
+  - gocyclo
+  - godot
+  - paralleltest
+  - tparallel
+  - godox
+  - tenv
+  - sqlclosecheck
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/stepan2volkov/social-network
+  govet:
+    check-shadowing: true
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  funlen:
+    lines: 100
+    statements: 50
+  gocyclo:
+    min-complexity: 15
+  godox:
+    keywords: ["TODO", "FIXME"]
