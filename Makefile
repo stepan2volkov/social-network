@@ -6,5 +6,5 @@ install-tools:
 
 .PHONY: lint
 lint:
-	$(BIN_DIR)/golangci-lint run -c golangci-lint.yaml profile/...
+	$(BIN_DIR)/golangci-lint run -c golangci-lint.yaml userapi/...
 

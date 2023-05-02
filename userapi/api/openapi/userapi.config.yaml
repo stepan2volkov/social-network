@@ -1,0 +1,9 @@
+package: userapi
+generate:
+  models: true
+  embedded-spec: true
+  chi-server: true
+  strict-server: true
+output: internal/api/userapi/userapi.gen.go
+output-options:
+  skip-prune: true

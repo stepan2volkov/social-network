@@ -1,0 +1,21 @@
+version: '3.3'
+services:
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: 'social-network'
+      MYSQL_USER: 'social-network-srv'
+      MYSQL_PASSWORD: '1qaz'
+      MYSQL_ROOT_PASSWORD: '1qaz@WSX'
+    ports:
+      - '3306:3306'
+  userapi:
+    image: stepan2volkov/userapi
+    build:
+      context: userapi
+    restart: always
+    environment:
+      DSN: 'social-network-srv:1qaz@tcp(db:3306)/social-network?parseTime=true'
+    ports:
+      - '8000:8000'
