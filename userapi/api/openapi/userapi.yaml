@@ -1,0 +1,161 @@
+openapi: "3.0.1"
+info:
+  title: Social Network – User API
+  description: Interactions with user profiles
+  version: 1.0.0
+  contact:
+    email: stepan2volkov@yandex.ru
+
+tags:
+- name: Auth
+  description: Register and login users
+- name: Profile
+  description: Getting information about users
+
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Log in
+      tags: [ Auth ]
+      operationId: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        200:
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: session=random-string; Path=/; Expires=datetime; Max-Age=86400; HttpOnly; Secure; SameSite=Lax
+  /api/v1/auth/register:
+    post:
+      summary: Create new user
+      tags: [ Auth ]
+      operationId: Register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        201:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+  /api/v1/profiles/{username}:
+    get:
+      summary: Get user profile
+      tags: [ Profile ]
+      operationId: GetProfileByUsername
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+            example: test
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetProfileByUsernameResponse'
+        404:
+          description: Profile not found
+  /api/v1/profiles/{username}/follow:
+    post:
+      summary: Follow user profile
+      tags: [ Profile ]
+      operationId: FollowProfile
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+            example: test
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Profile not found
+
+components:
+  schemas:
+    Credentials:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: test
+        password:
+          type: string
+          example: strong-password
+    Profile:
+      type: object
+      required:
+        - firstname
+        - lastname
+        - birthdate
+        - biography
+        - city
+      properties:
+        firstname:
+          type: string
+          example: Alex
+        lastname:
+          type: string
+          example: Woo
+        birthdate:
+          type: string
+          format: date
+          example: 1990-03-18
+        biography:
+          type: string
+          example: I like travelling, writing code and etc
+        city:
+          type: string
+          example: Berlin
+    LoginRequest:
+      allOf:
+      - $ref: '#/components/schemas/Credentials'
+    RegisterRequest:
+      allOf:
+      - $ref: '#/components/schemas/Profile'
+      - $ref: '#/components/schemas/Credentials'
+    RegisterResponse:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: e4d2e6b0-cde2-42c5-aac3-0b8316f21e58
+          x-go-name: ID
+    GetProfileByUsernameResponse:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/Profile'
+
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session
