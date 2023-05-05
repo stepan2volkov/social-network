@@ -62,6 +62,12 @@ type RegisterResponse struct {
 	ID openapi_types.UUID `json:"id"`
 }
 
+// SearchProfilesParams defines parameters for SearchProfiles.
+type SearchProfilesParams struct {
+	Firstname string `form:"firstname" json:"firstname"`
+	Lastname  string `form:"lastname" json:"lastname"`
+}
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -76,6 +82,9 @@ type ServerInterface interface {
 	// Create new user
 	// (POST /api/v1/auth/register)
 	Register(w http.ResponseWriter, r *http.Request)
+	// Search profiles
+	// (GET /api/v1/profiles/search)
+	SearchProfiles(w http.ResponseWriter, r *http.Request, params SearchProfilesParams)
 	// Get user profile
 	// (GET /api/v1/profiles/{username})
 	GetProfileByUsername(w http.ResponseWriter, r *http.Request, username string)
@@ -114,6 +123,58 @@ func (siw *ServerInterfaceWrapper) Register(w http.ResponseWriter, r *http.Reque
 
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Register(w, r)
+	})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// SearchProfiles operation middleware
+func (siw *ServerInterfaceWrapper) SearchProfiles(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{""})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchProfilesParams
+
+	// ------------- Required query parameter "firstname" -------------
+
+	if paramValue := r.URL.Query().Get("firstname"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "firstname"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "firstname", r.URL.Query(), &params.Firstname)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "firstname", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "lastname" -------------
+
+	if paramValue := r.URL.Query().Get("lastname"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "lastname"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "lastname", r.URL.Query(), &params.Lastname)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "lastname", Err: err})
+		return
+	}
+
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchProfiles(w, r, params)
 	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -299,6 +360,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/api/v1/auth/register", wrapper.Register)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/profiles/search", wrapper.SearchProfiles)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/profiles/{username}", wrapper.GetProfileByUsername)
 	})
 	r.Group(func(r chi.Router) {
@@ -343,6 +407,23 @@ type Register201JSONResponse RegisterResponse
 func (response Register201JSONResponse) VisitRegisterResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchProfilesRequestObject struct {
+	Params SearchProfilesParams
+}
+
+type SearchProfilesResponseObject interface {
+	VisitSearchProfilesResponse(w http.ResponseWriter) error
+}
+
+type SearchProfiles200JSONResponse []Profile
+
+func (response SearchProfiles200JSONResponse) VisitSearchProfilesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -405,6 +486,9 @@ type StrictServerInterface interface {
 	// Create new user
 	// (POST /api/v1/auth/register)
 	Register(ctx context.Context, request RegisterRequestObject) (RegisterResponseObject, error)
+	// Search profiles
+	// (GET /api/v1/profiles/search)
+	SearchProfiles(ctx context.Context, request SearchProfilesRequestObject) (SearchProfilesResponseObject, error)
 	// Get user profile
 	// (GET /api/v1/profiles/{username})
 	GetProfileByUsername(ctx context.Context, request GetProfileByUsernameRequestObject) (GetProfileByUsernameResponseObject, error)
@@ -505,6 +589,32 @@ func (sh *strictHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// SearchProfiles operation middleware
+func (sh *strictHandler) SearchProfiles(w http.ResponseWriter, r *http.Request, params SearchProfilesParams) {
+	var request SearchProfilesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchProfiles(ctx, request.(SearchProfilesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchProfiles")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SearchProfilesResponseObject); ok {
+		if err := validResponse.VisitSearchProfilesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("Unexpected response type: %T", response))
+	}
+}
+
 // GetProfileByUsername operation middleware
 func (sh *strictHandler) GetProfileByUsername(w http.ResponseWriter, r *http.Request, username string) {
 	var request GetProfileByUsernameRequestObject
@@ -560,23 +670,24 @@ func (sh *strictHandler) FollowProfile(w http.ResponseWriter, r *http.Request, u
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/9RWW27jNhTdCsH2U4pkxxNkZBhokrap0WkniFsUaOAPWrqWOaFIDXnlBwIB3UN32JUU",
-	"pGRLspVMBmg+CgSIJfE+eM65h3yiscpyJUGiodETNfEKMuZ+3mhIQCJnwj3mWuWgkUP1xIzZKJ3Y37Bl",
-	"WS6ARtSgVjL1Dx89iru8/sBlSkuPFga0ZBl0AxEMnq4uParhc8E1JDR6aEK9pvz8EKQWnyBGW+IW8E6r",
-	"JRdwvfu9jrkHkytpXFkmxMcljR6e6LcaljSi3wQNCEGNQFCnoGVfiQ8q5fIePhe271enbCNazkuP7muc",
-	"wLvgKtUsX+26ME2J4I9AULM1CMFl6pGN5shlSmKVAGEyIYBxH+4LrnGVMDwCfvD+feiH5/7g8rcwjNzf",
-	"n9SjS6UzhjSiLqInXczxqLdr0ILLvrVLrg2ecn4lYNu3XLC+1X8o9UWBNIVaWdpb91rA1nvoY/ceUm4Q",
-	"9FcTfNCM95VCaCo2Mu0qgh+NGoySIVwsQj9OYOiPhvE7n7H43A8Xl+eDi+VwAO8u20QWBT+dR49u/VT5",
-	"Fdp0+v0JorxvwkqPGogLzXE3sxuqGoyVeuRwVeDKtStpVL+iHq0LGDCGq5ZGWM5/hh0tbUoul6rKI5HF",
-	"DnTIGBeuW8iZHK6VeFTr73ZMJrA904WlKgETa56jTRvRqUTQLLZPhmw4roj1DJJXtBhbmKODb6ZizgT5",
-	"FXCj9CP556+/ibUKcnU3pR5dgzZVxsFZeBbaQioHyXJOI3p+Fp4NnAfhyu08YDkP1oOAFbgKhHUGR5+q",
-	"lGNJZLajaUKjyjhoBTIYvFbJbr9pkJXS8lzw2EUEn4ySjSvbXy+pqmNKZZdK1AW4F5W+XN/DMLT/VsAS",
-	"0O7NDNC/qUjrVG05fEXhRDOZqMyvdDQmdwxXk2BMftjmXIOZ2GlDnsGY/MK2/lUKk8uLURiOyU+I+Ucp",
-	"dmMysxKCMZmxDGYcYfKB9dhB6fZhiixjelfhRyqXYamxCnWCm9tFHRp0PVDPM7EfuTci49hDXsXH4A3K",
-	"14ZyguSNBoZAJGzckLwI6X6Agqf9GVzaBlLowbXv9HXTolkG6IT2UPuDnaDGHVrHexcnr1eJz1wZ5v0i",
-	"/09AffFiUeE7Ckc2S9eW6iAiFZKlKmTS8VCHR9s9H+Z2Fw1Tt4AdH2tRtT9wvsRWsFRCqM3z0/Cj+353",
-	"KPB/oev4aHorDip8XkFDeXh73MF+JN0tzR0TLp1pIHWl7d2hG3gL6K549oS0pzlXkrCFKvA4vrmylv8G",
-	"AAD//1lotT3YCwAA",
+	"H4sIAAAAAAAC/9RX307jxhd+ldH8fpc2dgKLWEdIBdpS1G0XkVaViriY2CfOLPaMmTkmsZClbl+hd73o",
+	"c/SmfQZ4hT5JNWMnthOHDa24qISE7ZnzZ77vnG9OHmgo00wKEKhp8EB1OIOU2cczBREI5Cyxr5mSGSjk",
+	"UL0xredSReYZFizNEqAB1aikiN3VokOxyOoFLmJaOjTXoARLoWuIoHFzd+lQBXc5VxDR4LoxdZrwNysj",
+	"OfkAIZoQ54CXSk55AqfF97XNFehMCm3DsiR5P6XB9QP9v4IpDej/vAYEr0bAq13Qsi/EOxlzcQV3ucl7",
+	"Z5dtRMub0qHLGBvwTriMFctmRRemC5LwWyCo2D0kCRexQ+aKIxcxCWUEhImIAIZ9uE+4wlnEcA34wdu3",
+	"vuvvu4Oj73w/sH8/UodOpUoZ0oBaix53Ice13E5BJVz07Z1ypXGT85MEFn3bE9a3+wcpP1kgTaCWl/bR",
+	"nRaw9Rn62L2CmGsE9WKCVzXjvLAQmohNmXYrgq+1GhxEQzic+G4YwdA9GIZvXMbCfdefHO0PDqfDAbw5",
+	"ahOZ53yzHx26cGPpVmjTi883EOV9HVY6VEOYK47F2ByoSjCU8pbDSY4zm66gQf2JOrQOoEFrLls1wjL+",
+	"NRS0NC65mMrKj0AWWtAhZTyx2ULGxPBeJrfy/rOCiQgWeyo3VEWgQ8UzNG4DeiEQFAvNmyZzjjNiNINk",
+	"FS3aBOZo4RvLkLOEfAs4l+qW/PXTL8RIBTm5vKAOvQelK4+DPX/PN4FkBoJlnAZ0f8/fG1gNwpk9uccy",
+	"7t0PPJbjzEuMMlj6ZFU5hkRmMrqIaFAJB61ABo2nMiqWhwZRVVqWJTy0Ft4HLUWjyubpuarqiFLZpRJV",
+	"DvZDVV8276Hvm38zYBEo+2UM6J5VpHWithS+ovBYMRHJ1K3qaEQuGc6OvRH5YpFxBfrYdBvyFEbkG7Zw",
+	"T2I4Pjo88P0R+Qoxey+SYkTGpoRgRMYshTFHOH7HeuSgtOfQeZoyVVT4kUplWKxNhdqCuzGbOjSouqG2",
+	"M7FsuVciY11DduJj8Arha0HZQPJMAUMgAua2SZ6FdNlAngamQtvgMfRgOrbLl027ZUyxFNCW13WtCnc5",
+	"qKIRhbZod/Fxeivw8dfHPx//ePr49HPffdAfo3UZ7BTit6ePj7/3uL/p76CdGeMIqf4Udc0lspJJpVix",
+	"YrCWXgtoW3Svb0x+DcEVGR3xqwleRujn+GE5Z5Vbee6bsLawbVSyIaI1wu1CxJax8N/S8Bz6zw6PFQMH",
+	"/oHx0r16aiMiJJKpzEVEX0TWOWDnrvoHbHlTmSRyvl3xvrTrl6sA/xW61seP1+KgwmcHGsrV1/UMlrJr",
+	"J3E7Clh3uoHUhjY61TU8B7RjvJmCzMTGpSBsInNct29+lpR/BwAA//8FCAJGvA0AAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

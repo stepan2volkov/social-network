@@ -18,6 +18,7 @@ import (
 	"github.com/stepan2volkov/social-network/profile/internal/repo/userrepo"
 	"github.com/stepan2volkov/social-network/profile/internal/router"
 	"github.com/stepan2volkov/social-network/profile/internal/server"
+	"github.com/stepan2volkov/social-network/profile/internal/telemetry/metric"
 )
 
 const (
@@ -60,10 +61,14 @@ func main() {
 	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
 	gob.Register(domain.UserIdentity{})
 
+	// Initializing metrics.
+	apiMetrics := metric.NewAPIMetrics()
+
 	// Initializing external API layout.
 	router := router.New(
 		sessionManager,
 		userApp,
+		apiMetrics,
 	)
 
 	srv := server.New(router, cfg.Server.Port, cfg.Server.WriteTimeout, cfg.Server.ReadTimeout)

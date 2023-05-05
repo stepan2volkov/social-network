@@ -92,6 +92,34 @@ paths:
                 type: object
         404:
           description: Profile not found
+  /api/v1/profiles/search:
+    get:
+      summary: Search profiles
+      tags: [ Profile ]
+      operationId: SearchProfiles
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: firstname
+          in: query
+          required: true
+          schema:
+            type: string
+            example: Конст
+        - name: lastname
+          in: query
+          required: true
+          schema:
+            type: string
+            example: Оси
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Profile'
 
 components:
   schemas:
